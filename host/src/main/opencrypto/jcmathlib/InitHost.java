@@ -1,0 +1,133 @@
+package opencrypto.jcmathlib;
+
+import javax.smartcardio.*;
+import java.util.Arrays;
+import static main.HostUtils.*; 
+
+public class InitHost {
+
+    // --- Constantes APDU pour le Provisioning ---
+    private static final byte CLA = (byte) 0xB0;
+    private static final byte INS_INIT = (byte) 0x10;
+    private static final short KEY_SIZE_BYTES = 128; // 128 bytes
+
+    // --- Constantes extraites et provisionnées ---
+    // Les tableaux de bytes sont maintenant définis de manière simplifiée et complète.
+    public static final byte[] N_BYTES = {
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xD0, (byte) 0x77, (byte) 0x47, (byte) 0x80, (byte) 0x52,
+        (byte) 0x16, (byte) 0x31, (byte) 0xB2, (byte) 0xD0, (byte) 0x5C, (byte) 0x07, (byte) 0x68, (byte) 0x66,
+        (byte) 0x16, (byte) 0xB8, (byte) 0x28, (byte) 0x3E, (byte) 0x15, (byte) 0x64, (byte) 0xFE, (byte) 0x07,
+        (byte) 0x70, (byte) 0x54, (byte) 0xF7, (byte) 0x03, (byte) 0x8F, (byte) 0x36, (byte) 0x92, (byte) 0x3C,
+        (byte) 0x47, (byte) 0x1A, (byte) 0x11, (byte) 0x7F, (byte) 0x86, (byte) 0xA2, (byte) 0xE9, (byte) 0xF6,
+        (byte) 0xE7, (byte) 0xA1, (byte) 0xC6, (byte) 0x8E, (byte) 0x24, (byte) 0xD7, (byte) 0xA9, (byte) 0x42,
+        (byte) 0xF8, (byte) 0xF6, (byte) 0xEB, (byte) 0x3D, (byte) 0x9E, (byte) 0x2B, (byte) 0x54, (byte) 0x88,
+        (byte) 0x19, (byte) 0x58, (byte) 0x08, (byte) 0x72, (byte) 0x68, (byte) 0x80, (byte) 0x91, (byte) 0xE2,
+        (byte) 0x1A, (byte) 0x4B, (byte) 0x06, (byte) 0x9F, (byte) 0x9E, (byte) 0x13, (byte) 0x14, (byte) 0x27,
+        (byte) 0x5E, (byte) 0x01, (byte) 0x3A, (byte) 0x02, (byte) 0x17, (byte) 0xC0, (byte) 0x30, (byte) 0xFE,
+        (byte) 0x11, (byte) 0xD4, (byte) 0x9A, (byte) 0xEE, (byte) 0x4B, (byte) 0x43, (byte) 0x52, (byte) 0x9E,
+        (byte) 0x41, (byte) 0x65, (byte) 0x63, (byte) 0xB2, (byte) 0x3E, (byte) 0x38, (byte) 0x75, (byte) 0x82,
+        (byte) 0xCA, (byte) 0x88, (byte) 0x24, (byte) 0xA7, (byte) 0xCB, (byte) 0x28, (byte) 0x55, (byte) 0x2E,
+        (byte) 0x96, (byte) 0x22, (byte) 0x2C, (byte) 0x58, (byte) 0x4C, (byte) 0x81, (byte) 0x3D, (byte) 0x11,
+        (byte) 0x5C, (byte) 0x59, (byte) 0x74, (byte) 0x27 
+    };
+    
+    public static final byte[] COEFF2_BYTES = new byte[] {
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xC2, (byte) 0x24, (byte) 0x09, (byte) 0x74, (byte) 0xC6, 
+        (byte) 0x55, (byte) 0xB1, (byte) 0x1C, (byte) 0x47, (byte) 0xE4, (byte) 0x36, (byte) 0x9B, (byte) 0x2A, 
+        (byte) 0x0F, (byte) 0x90, (byte) 0x77, (byte) 0x97, (byte) 0x74, (byte) 0x57, (byte) 0xC9, (byte) 0xC5, 
+        (byte) 0xB2, (byte) 0x70, (byte) 0x07, (byte) 0xB8, (byte) 0xC4, (byte) 0xA7, (byte) 0x31, (byte) 0x11, 
+        (byte) 0x05, (byte) 0x34, (byte) 0xC1, (byte) 0x5A, (byte) 0x17, (byte) 0x0A, (byte) 0x99, (byte) 0x46, 
+        (byte) 0xF1, (byte) 0x74, (byte) 0xD2, (byte) 0xDE, (byte) 0x3C, (byte) 0xCA, (byte) 0xE2, (byte) 0x61, 
+        (byte) 0xB0, (byte) 0x12, (byte) 0xF4, (byte) 0x34, (byte) 0xEE, (byte) 0xA0, (byte) 0xE3, (byte) 0x41, 
+        (byte) 0xB5, (byte) 0x30, (byte) 0x0B, (byte) 0x29, (byte) 0x3C, (byte) 0x29, (byte) 0x37, (byte) 0x96, 
+        (byte) 0xE4, (byte) 0x9E, (byte) 0x0F, (byte) 0x2B, (byte) 0x07, (byte) 0x16, (byte) 0xA8, (byte) 0xC2, 
+        (byte) 0x32, (byte) 0x93, (byte) 0x80, (byte) 0xF9, (byte) 0x3D, (byte) 0x34, (byte) 0x3E, (byte) 0x08, 
+        (byte) 0x1D, (byte) 0x06, (byte) 0xE1, (byte) 0x5B, (byte) 0x63, (byte) 0xD8, (byte) 0xB0, (byte) 0xE8, 
+        (byte) 0x4F, (byte) 0x3D, (byte) 0x78, (byte) 0xA8, (byte) 0x1B, (byte) 0xE8, (byte) 0x66, (byte) 0xD6, 
+        (byte) 0x06, (byte) 0xC7, (byte) 0x81, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, 
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00
+    };
+    
+    public static final byte[] INV6_BYTES = new byte[] {
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, 
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x7B, (byte) 0x47, (byte) 0xC5, (byte) 0x9C, (byte) 0x66, (byte) 0xF9, (byte) 0x5B, (byte) 0xEA,
+        (byte) 0x33, (byte) 0xF5, (byte) 0xDB, (byte) 0x94, (byte) 0x8B, (byte) 0x01, (byte) 0x2F, (byte) 0x7E,
+        (byte) 0x66, (byte) 0x63, (byte) 0xE2, (byte) 0x74, (byte) 0x19, (byte) 0xA7, (byte) 0xCC, (byte) 0x24,
+        (byte) 0x74, (byte) 0x8C, (byte) 0xC3, (byte) 0x21, (byte) 0x6C, (byte) 0xE7, (byte) 0x03, (byte) 0x4F,
+        (byte) 0x4F, (byte) 0x71, (byte) 0x82, (byte) 0x74, (byte) 0xB5, (byte) 0xB4, (byte) 0x96, (byte) 0x1D,
+        (byte) 0x02, (byte) 0xA1, (byte) 0x46, (byte) 0xF3, (byte) 0x85, (byte) 0xFC, (byte) 0xD8, (byte) 0x83,
+        (byte) 0x01, (byte) 0xB5, (byte) 0x6F, (byte) 0x58, (byte) 0x13, (byte) 0xE2, (byte) 0x29, (byte) 0x64,
+        (byte) 0x04, (byte) 0x98, (byte) 0xB5, (byte) 0xF9, (byte) 0x42, (byte) 0x46, (byte) 0x1D, (byte) 0x4C,
+        (byte) 0x75, (byte) 0x0F, (byte) 0x3C, (byte) 0x6D, (byte) 0x37, (byte) 0x84, (byte) 0x1C, (byte) 0x34,
+        (byte) 0xA1, (byte) 0xB8, (byte) 0xC5, (byte) 0x13, (byte) 0x23, (byte) 0x20, (byte) 0xEF, (byte) 0xE4,
+        (byte) 0xF1, (byte) 0xC5, (byte) 0xCC, (byte) 0x9C, (byte) 0x40, (byte) 0x73, (byte) 0x35, (byte) 0xF3,
+        (byte) 0x25, (byte) 0x5C, (byte) 0xEF, (byte) 0x79, (byte) 0xF8, (byte) 0xC6, (byte) 0x2A, (byte) 0x14
+    };
+    
+    public static final byte[] DELTA_BYTES = new byte[] {
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+        (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x0A, (byte) 0xFA
+    };
+
+    public static void main(String[] args) {
+        try {
+            CardTerminal terminal = HostUtils.connectToCard();
+            if (terminal == null) return;
+            
+            Card card = terminal.connect("*");
+            CardChannel channel = card.getBasicChannel();
+            System.out.println(" Connexion à la carte établie pour l'INITIALISATION.");
+
+            HostUtils.selectApplet(channel);
+
+            // Étape d'Initialisation : Écriture en EEPROM (4 APDU successives)
+            System.out.println("\n--- Initialisation des 4 Constantes en EEPROM (INS_INIT) ---");
+            initializeBigNat(channel, (byte) 0x01, N_BYTES, "n"); 
+            initializeBigNat(channel, (byte) 0x02, COEFF2_BYTES, "coeff2");
+            initializeBigNat(channel, (byte) 0x03, INV6_BYTES, "inv6");
+            initializeBigNat(channel, (byte) 0x04, DELTA_BYTES, "delta");
+            System.out.println(" INITIALISATION TERMINÉE. Les constantes sont persistantes.");
+            
+            card.disconnect(false);
+            System.out.println("\n Déconnexion de la carte.");
+            
+        } catch (Exception e) {
+            System.err.println("\n Erreur critique lors de l'initialisation : " + e.getMessage());
+        }
+    }
+
+    private static void initializeBigNat(CardChannel channel, byte p1, byte[] data, String name) throws CardException {
+        
+        if (data == null || data.length != KEY_SIZE_BYTES) {
+            throw new IllegalArgumentException("Le tableau de bytes pour " + name + " doit avoir exactement " + KEY_SIZE_BYTES + " bytes.");
+        }
+        
+        // APDU : CLA=B0, INS=10, P1={ID}, P2=00, Lc=80, DATA
+        CommandAPDU initApdu = new CommandAPDU(CLA, INS_INIT, p1, 0x00, data);
+        ResponseAPDU response = channel.transmit(initApdu);
+
+        if (response.getSW() == 0x9000) {
+            System.out.println("   - Constante " + name + " (P1=0x" + Integer.toHexString(p1) + ") initialisée (SW: 9000)");
+        } else {
+            System.err.println("   -  Échec de l'initialisation de " + name + " (SW: " + Integer.toHexString(response.getSW()) + ")");
+            throw new CardException("Initialisation failed for constant " + name + ".");
+        }
+    }
+}
