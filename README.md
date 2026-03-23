@@ -59,4 +59,5 @@ To build the project and generate the binary for your smart card, run the follow
 
 ### Build Instructions
 1. **Clone the repository** (including submodules):
-  git clone --recursive https://github.com/mbachkat/FLRSAonSmartCard.git
+  git clone --recursive  https://github.com/cryptoapplicantanon17-cell/FLRSAonSmartCard.git
+
