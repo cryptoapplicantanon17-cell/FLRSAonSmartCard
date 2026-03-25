@@ -45,29 +45,24 @@ public class ComplexCalcApplet extends Applet {
     private RSAPrivateKey rsaKey;
     private Cipher rsaCipher;
 
-    // Commandes
     // Commands
     final static byte CLA_INIT = (byte) 0xB0;
     final static byte INS_INIT = (byte) 0x10;
     final static byte CLA_CALC = (byte) 0x80;
     final static byte INS_DO_CALC = (byte) 0x03;
 
-    // --- Taille de clé réduite à 64 bytes (512 bits) ---
     // --- Key size reduced to 128 bytes ( 1024 bits) ---
     private final static short KEY_SIZE_BYTES = 128; 
     private final static short DELTA_SIZE_BYTES = 128;
     private BigNat EXP_TWO; // Exposant constant = 2
     private BigNat EXP_THREE;
-    // --- OBJETS PERSISTANTS (EEPROM) ---
     // --- PERSISTENT OBJECTS (EEPROM) ---
     private BigNat n;
     private BigNat coeff2;
     private BigNat inv6;
     private BigNat delta;
-    private BigNat T; // Accumulateur et résultat final (PERSISTANT)
-    
-    // --- OBJETS TRANSIENTS (RAM) ---
-    // --- TRANSIENT OBJECTS (RAM) ---
+    private BigNat T;
+        // --- TRANSIENT OBJECTS (RAM) ---
     private BigNat x; // Input/output 
     
 
@@ -80,11 +75,9 @@ public class ComplexCalcApplet extends Applet {
     private ComplexCalcApplet() {}
 
     private void allocateAndRegister() {
-        // GARDER 1024 POUR L'INSTALLATION (contrainte physique)
         // KEEP 1024 FOR INSTALLATION (physical constraint)
         rm = new ResourceManager(JCSystem.MEMORY_TYPE_PERSISTENT, (short) 1024); 
 
-        // Allocations PERSISTANTES (EEPROM)
         // PERSISTENT allocations (EEPROM)
         n      = new BigNat(KEY_SIZE_BYTES, (byte) 0, rm);
        coeff2 = new BigNat(KEY_SIZE_BYTES, (byte) 0, rm);
@@ -92,7 +85,6 @@ public class ComplexCalcApplet extends Applet {
         delta  = new BigNat(DELTA_SIZE_BYTES, (byte) 0, rm);
         T      = new BigNat(KEY_SIZE_BYTES, (byte) 0, rm);
 
-        // Allocations TRANSIENTES (RAM)
         // TRANSIENT allocations (RAM)
         x = new BigNat(KEY_SIZE_BYTES, JCSystem.MEMORY_TYPE_TRANSIENT_RESET, rm);
         EXP_TWO = new BigNat((short) 1, (byte) 0, rm); 
@@ -101,11 +93,10 @@ public class ComplexCalcApplet extends Applet {
         EXP_THREE = new BigNat((short) 1, (byte) 0, rm); 
         byte[] val2 = {0x03};
         EXP_THREE.fromByteArray(val2, (short) 0, (short) 1);
-        // ALLOCATION RSA POUR ACCÉLÉRATION modExp
         // RSA ALLOCATION FOR modExp ACCELERATION
         rsaKey = (RSAPrivateKey) KeyBuilder.buildKey(
         KeyBuilder.TYPE_RSA_PRIVATE,
-        (short)(KEY_SIZE_BYTES * 8), // Taille en bits (ex: 1024)
+        (short)(KEY_SIZE_BYTES * 8),
         false
         );
         rsaCipher = Cipher.getInstance(
@@ -115,37 +106,29 @@ public class ComplexCalcApplet extends Applet {
 
         register();
     }
-    /**
- * Exponentiation modulaire (base^exp mod mod) utilisant l'accélération RSA.
- */
  /**
  * Modular exponentiation (base^exp mod mod) using RSA acceleration.
  */
 private void modExp_Accelerated(BigNat base, BigNat exp, BigNat mod, BigNat result) {
     
-    // 1. Charger le module (n) et l'exposant (delta) dans la clé RSA
     // 1. Load the modulus (n) and the exponent (delta) into the RSA key
     short size = mod.length();
     byte[] tmp = new byte[size];
     short sizeexp = exp.length();
     byte[] tmpexp = new byte[sizeexp];
 
-    // Copier la valeur du BigNat 'mod' dans tmp
     // Copy the BigNat 'mod' value into tmp
     mod.copyToByteArray(tmp, (short) 0);
     exp.copyToByteArray(tmpexp, (short) 0);
 
-    // Charger dans la clé RSA
     // Load into the RSA key
     rsaKey.setModulus(tmp, (short) 0, size);
     rsaKey.setExponent(tmpexp, (short) 0, sizeexp);
     
-    // 2. Initialiser le Cipher en mode DÉCHIFFREMENT
     // 2. Initialize the Cipher in DECRYPT mode
  
     rsaCipher.init(rsaKey, Cipher.MODE_DECRYPT);
 
-    // 3. Exécuter l'opération (le déchiffrement RSA est base^exp mod mod)
     // 3. Execute the operation (RSA decryption is base^exp mod mod)
 
     
@@ -157,7 +140,6 @@ private void modExp_Accelerated(BigNat base, BigNat exp, BigNat mod, BigNat resu
             alignedBuf, (short) 0
         );
         
-        // CORRECTION CRITIQUE (FIX ZÉRO) : Alignement du résultat dans alignedBuf
        // CRITICAL FIX (ZERO PADDING): Aligning the result in alignedBuf
         short offset = (short) (modSize - outputLen);
         
@@ -188,7 +170,6 @@ private void modExp_Accelerated(BigNat base, BigNat exp, BigNat mod, BigNat resu
         byte cla = buf[ISO7816.OFFSET_CLA];
         byte ins = buf[ISO7816.OFFSET_INS];
 
-        // Gestion des CLA sécurisés
         // Secure CLA handling
         if ((cla == CLA_INIT || cla == (byte)(CLA_INIT | 0x04)) && ins == INS_INIT) {
             initConstants(apdu);
@@ -224,7 +205,6 @@ private void modExp_Accelerated(BigNat base, BigNat exp, BigNat mod, BigNat resu
 
         x.fromByteArray(buf, ISO7816.OFFSET_CDATA, KEY_SIZE_BYTES); // x est transient
 
-        // 1. Calcul de la Partie Gauche : T = (((x^3 - x) * coeff2 * inv6) + x) mod n
         // 1. Left-Hand Side Calculation: T = (((x^3 - x) * coeff2 * inv6) + x) mod n
         
         T.copy(x); 
@@ -241,7 +221,6 @@ private void modExp_Accelerated(BigNat base, BigNat exp, BigNat mod, BigNat resu
         // + x
         T.modAdd(x, n); 
 
-        // 2. Calcul de la Partie Droite : x = x^Δ (RÉACTIVÉ)
         // 2. Right-Hand Side Calculation: x = x^Δ (REACTIVATED)
         //x.modExp(delta, n);
         modExp_Accelerated(x, delta, n,x);
@@ -250,7 +229,6 @@ private void modExp_Accelerated(BigNat base, BigNat exp, BigNat mod, BigNat resu
            // modExp_Accelerated(x, EXP_TWO, n,x);
         //T.copy(x);
 
-        // 3. Calcul Final: T = T * x^Δ
         // 3. Final Calculation: T = T * x^Δ
         //modMult_Accelerated(T, x, n, T);
         T.modMult(x,n);
