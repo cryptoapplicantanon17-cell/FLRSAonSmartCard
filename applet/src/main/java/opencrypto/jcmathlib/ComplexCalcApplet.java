@@ -203,7 +203,7 @@ private void modExp_Accelerated(BigNat base, BigNat exp, BigNat mod, BigNat resu
         byte[] buf = apdu.getBuffer();
         apdu.setIncomingAndReceive();
 
-        x.fromByteArray(buf, ISO7816.OFFSET_CDATA, KEY_SIZE_BYTES); // x est transient
+        x.fromByteArray(buf, ISO7816.OFFSET_CDATA, KEY_SIZE_BYTES); // x is transiant
 
         // 1. Left-Hand Side Calculation: T = (((x^3 - x) * coeff2 * inv6) + x) mod n
         
